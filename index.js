@@ -196,6 +196,36 @@ app.get('/api/progresos', requireAuth, async (req, res) => {
   }
 })
 
+app.get('/api/progresos/public', async (req, res) => {
+  const studentId = req.query.estudiante_id
+
+  if (!/^\d+$/.test(String(studentId)) || Number(studentId) < 1) {
+    return res.status(400).json({ error: 'El estudiante_id no es válido' })
+  }
+
+  try {
+    const [rows] = await pool.execute(
+      `SELECT
+        p.id,
+        p.estudiante_id,
+        a.nombre AS actividad,
+        p.puntuacion,
+        p.aciertos,
+        p.errores,
+        p.fecha_juego
+      FROM progresos p
+      INNER JOIN actividades a ON a.id = p.actividad_id
+      WHERE p.estudiante_id = ?
+      ORDER BY p.fecha_juego DESC`,
+      [Number(studentId)],
+    )
+    res.json(rows)
+  } catch (error) {
+    console.error('Could not retrieve public student progress:', error.message)
+    res.status(500).json({ error: 'No se pudo obtener el historial' })
+  }
+})
+
 app.post('/api/progresos', async (req, res) => {
   const estudianteId = Number(req.body.estudiante_id)
   const actividadId = Number(req.body.actividad_id)
