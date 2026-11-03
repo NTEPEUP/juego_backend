@@ -24,7 +24,7 @@ app.use(
 
       return callback(new Error('Origin not allowed by CORS'))
     },
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 )
@@ -112,7 +112,7 @@ app.get('/api/actividades', async (_req, res) => {
 app.get('/api/estudiantes/public', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, nombre, edad FROM estudiantes ORDER BY nombre',
+      'SELECT id, nombre, edad FROM estudiantes WHERE estado = 1 ORDER BY nombre',
     )
     res.json(rows)
   } catch (error) {
@@ -124,7 +124,7 @@ app.get('/api/estudiantes/public', async (_req, res) => {
 app.get('/api/estudiantes', requireAuth, async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, nombre, edad, fecha_registro FROM estudiantes ORDER BY nombre',
+      'SELECT id, nombre, edad, estado, fecha_registro FROM estudiantes ORDER BY nombre',
     )
     res.json(rows)
   } catch (error) {
@@ -145,17 +145,51 @@ app.post('/api/estudiantes', requireAuth, async (req, res) => {
 
   try {
     const [result] = await pool.execute(
-      'INSERT INTO estudiantes (nombre, edad) VALUES (?, ?)',
+      'INSERT INTO estudiantes (nombre, edad, estado) VALUES (?, ?, 1)',
       [nombre, edad],
     )
     const [rows] = await pool.execute(
-      'SELECT id, nombre, edad, fecha_registro FROM estudiantes WHERE id = ?',
+      'SELECT id, nombre, edad, estado, fecha_registro FROM estudiantes WHERE id = ?',
       [result.insertId],
     )
     res.status(201).json(rows[0])
   } catch (error) {
     console.error('Could not create student:', error.message)
     res.status(500).json({ error: 'No se pudo registrar el estudiante' })
+  }
+})
+
+app.patch('/api/estudiantes/:id/estado', requireAuth, async (req, res) => {
+  const studentId = Number(req.params.id)
+  const estado = Number(req.body.estado)
+
+  if (
+    !Number.isInteger(studentId) ||
+    studentId < 1 ||
+    ![0, 1].includes(estado)
+  ) {
+    return res.status(400).json({
+      error: 'El id del estudiante y el estado deben ser 0 o 1',
+    })
+  }
+
+  try {
+    const [result] = await pool.execute(
+      'UPDATE estudiantes SET estado = ? WHERE id = ?',
+      [estado, studentId],
+    )
+    if (!result.affectedRows) {
+      return res.status(404).json({ error: 'No se encontró el estudiante' })
+    }
+
+    const [rows] = await pool.execute(
+      'SELECT id, nombre, edad, estado, fecha_registro FROM estudiantes WHERE id = ?',
+      [studentId],
+    )
+    res.json(rows[0])
+  } catch (error) {
+    console.error('Could not update student status:', error.message)
+    res.status(500).json({ error: 'No se pudo actualizar el estado del estudiante' })
   }
 })
 

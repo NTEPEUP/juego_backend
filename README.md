@@ -55,6 +55,11 @@ Rutas protegidas actualmente:
 
 - `GET /api/estudiantes`
 - `POST /api/estudiantes`
+- `PATCH /api/estudiantes/:id/estado`
 - `GET /api/progresos`
+
+El endpoint público `GET /api/estudiantes/public` solo devuelve estudiantes
+con `estado = 1`. El endpoint de estado recibe `{ "estado": 1 }` para activar
+y `{ "estado": 0 }` para desactivar.
 
 El token se mantiene en memoria del servidor y se invalida al reiniciar la API.
